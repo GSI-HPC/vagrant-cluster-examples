@@ -1,6 +1,6 @@
 # Lustre Installation with Vagrant
 
-Lustre version: 2.12.5
+Lustre version: 2.12.5  
 CentOS release: el7.8.2003
 
 ## Prerequisites

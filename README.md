@@ -22,4 +22,4 @@ https://wiki.whamcloud.com/display/PUB/Lustre+Support+Matrix
 
 ### Installation
 
-https://wiki.lustre.org/Installing\_the\_Lustre\_Software
+https://wiki.lustre.org/Installing_the_Lustre_Software

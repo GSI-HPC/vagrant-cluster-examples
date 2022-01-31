@@ -1,1 +1,25 @@
-# Vagrant Lustre
+# Lustre Installation with Vagrant
+
+Lustre version: 2.12.5
+CentOS release: el7.8.2003
+
+## Prerequisites
+
+* vagrant
+* virtualbox
+
+## Vagrant
+
+`vagrant box add centos/7`
+
+`vagrant up`
+
+## Lustre
+
+### Support Matrix
+
+https://wiki.whamcloud.com/display/PUB/Lustre+Support+Matrix
+
+### Installation
+
+https://wiki.lustre.org/Installing\_the\_Lustre\_Software

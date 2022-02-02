@@ -39,6 +39,7 @@ $configure_lustre_server_mgs_mds = <<-SCRIPT
 mkdir /mnt/mdt
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
 mount -t lustre /dev/sdb /mnt/mdt
+
 echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
 modprobe lnet
 SCRIPT

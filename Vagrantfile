@@ -36,6 +36,16 @@ enabled=1
 EOF
 SCRIPT
 
+$create_repo_lustre_client = <<-SCRIPT
+cat > /etc/yum.repos.d/lustre-client.repo <<EOF
+[lustre-client]
+name=lustre-client
+baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/client
+gpgcheck=0
+enabled=1
+EOF
+SCRIPT
+
 $install_packages_server_mds = <<-SCRIPT
 yum install -y e2fsprogs
 yum install -y epel-release
@@ -43,6 +53,11 @@ yum install -y kmod-lustre
 yum install -y kmod-lustre-osd-ldiskfs
 yum install -y lustre-osd-ldiskfs-mount
 yum install -y lustre
+SCRIPT
+
+$install_packages_client = <<-SCRIPT
+yum install -y kmod-lustre-client
+yum install -y lustre-client
 SCRIPT
 
 $configure_lustre_server_lnet = <<-SCRIPT
@@ -64,9 +79,15 @@ mkfs.lustre --ost --fsname=phoenix --mgsnode=mxs@tcp0 --index=2 /dev/sdc
 mkdir /mnt/ost1
 mkdir /mnt/ost2
 
-# Mounting Lustre loads lnet module implicitly.
+# Mounting OSTs loads lnet module implicitly.
 mount.lustre /dev/sdb /mnt/ost1
 mount.lustre /dev/sdc /mnt/ost2
+SCRIPT
+
+$configure_lustre_client = <<-SCRIPT
+mkdir /lustre
+# Mounting Lustre endpoint loads lnet and lustre module implicitly.
+mount -t lustre mxs@tcp0:/phoenix /lustre
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -99,5 +120,13 @@ Vagrant.configure("2") do |config|
     oss.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
     oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
     oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss
+  end
+
+  config.vm.define  "client" do |client|
+    client.vm.hostname = "client"
+    client.vm.network "private_network", ip: "192.168.10.12"
+    client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
+    client.vm.provision "shell", name: "install_packages", inline: $install_packages_client
+    client.vm.provision "shell", name: "config", inline: $configure_lustre_client
   end
 end

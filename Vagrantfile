@@ -4,7 +4,17 @@
 VAGRANTFILE_API_VERSION = "2"
 ENV["VAGRANT_EXPERIMENTAL"] = "disks"
 
-# box_version 2004.01 => CentOS release 7.8.2003
+hosts = %q(
+127.0.0.1     localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+192.168.10.10 mxs
+192.168.10.11 oss
+)
+
+$create_file_hosts = <<-SCRIPT
+echo "#{hosts}" > /etc/hosts
+SCRIPT
 
 $create_repo_e2fsprogs = <<-SCRIPT
 cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
@@ -35,27 +45,59 @@ yum install -y lustre-osd-ldiskfs-mount
 yum install -y lustre
 SCRIPT
 
+$configure_lustre_server_lnet = <<-SCRIPT
+# Should be set before lnet module is loaded.
+echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
+SCRIPT
+
 $configure_lustre_server_mgs_mds = <<-SCRIPT
 mkdir /mnt/mdt
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
+# Mounting Lustre loads lnet module implicitly.
 mount -t lustre /dev/sdb /mnt/mdt
+SCRIPT
 
-echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
-modprobe lnet
+$configure_lustre_server_oss = <<-SCRIPT
+mkfs.lustre --ost --fsname=phoenix --mgsnode=mxs@tcp0 --index=1 /dev/sdb
+mkfs.lustre --ost --fsname=phoenix --mgsnode=mxs@tcp0 --index=2 /dev/sdc
+
+mkdir /mnt/ost1
+mkdir /mnt/ost2
+
+# Mounting Lustre loads lnet module implicitly.
+mount.lustre /dev/sdb /mnt/ost1
+mount.lustre /dev/sdc /mnt/ost2
 SCRIPT
 
 Vagrant.configure("2") do |config|
   config.vm.provider :virtualbox
   config.vm.box = "centos/7"
+  # box_version 2004.01 => CentOS release 7.8.2003
   config.vm.box_version = "2004.01"
   config.vm.box_check_update = false
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.define  "mgs-mds"
-  config.vm.hostname = "mgs-mds"
-  config.vm.network "private_network", ip: "192.168.10.10"
-  config.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
-  config.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
-  config.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
-  config.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
-  config.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
+  config.vm.provision "shell", name: "create_file_hosts", inline: $create_file_hosts
+
+  config.vm.define  "mxs" do |mxs|
+    mxs.vm.hostname = "mxs"
+    mxs.vm.network "private_network", ip: "192.168.10.10"
+    mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
+    mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    mxs.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
+    mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
+  end
+
+  config.vm.define  "oss" do |oss|
+    oss.vm.hostname = "oss"
+    oss.vm.network "private_network", ip: "192.168.10.11"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
+    oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    oss.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
+    oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss
+  end
 end

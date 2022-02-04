@@ -32,7 +32,7 @@ cat > /etc/yum.repos.d/lustre-server.repo <<EOF
 name=lustre-server
 baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/server
 gpgcheck=0
-enabled=1
+enabled=0
 EOF
 SCRIPT
 
@@ -42,7 +42,7 @@ cat > /etc/yum.repos.d/lustre-client.repo <<EOF
 name=lustre-client
 baseurl=https://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/client
 gpgcheck=0
-enabled=1
+enabled=0
 EOF
 SCRIPT
 
@@ -76,8 +76,9 @@ zfs
 SCRIPT
 
 $install_packages_client = <<-SCRIPT
-yum install -y kmod-lustre-client
-yum install -y lustre-client
+yum --nogpgcheck --enablerepo=lustre-client install -y \
+kmod-lustre-client \
+lustre-client
 SCRIPT
 
 $configure_lustre_server_lnet = <<-SCRIPT

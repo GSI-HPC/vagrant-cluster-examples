@@ -73,8 +73,8 @@ mount -t lustre /dev/sdb /mnt/mdt
 SCRIPT
 
 $configure_lustre_server_oss = <<-SCRIPT
-mkfs.lustre --ost --fsname=phoenix --mgsnode=mxs@tcp0 --index=1 /dev/sdb
-mkfs.lustre --ost --fsname=phoenix --mgsnode=mxs@tcp0 --index=2 /dev/sdc
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
 
 mkdir /mnt/ost1
 mkdir /mnt/ost2

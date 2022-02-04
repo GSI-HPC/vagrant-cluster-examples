@@ -22,7 +22,7 @@ cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
 name=e2fsprogs-wc
 baseurl=https://downloads.whamcloud.com/public/e2fsprogs/1.44.3.wc1/el7
 gpgcheck=0
-enabled=1
+enabled=0
 EOF
 SCRIPT
 
@@ -52,8 +52,7 @@ yum install -y epel-release
 yum install -y perl
 SCRIPT
 
-$install_packages_server_kernel = <<-SCRIPT
-# Installs Lustre patched kernel packages.
+$install_packages_patched_kernel = <<-SCRIPT
 yum --nogpgcheck --disablerepo=* --enablerepo=lustre-server install -y \
 kernel \
 kernel-devel \
@@ -63,11 +62,17 @@ kernel-tools-libs \
 kernel-tools-libs-devel
 SCRIPT
 
-$install_packages_server_mds = <<-SCRIPT
-yum install -y kmod-lustre
-yum install -y kmod-lustre-osd-ldiskfs
-yum install -y lustre-osd-ldiskfs-mount
-yum install -y lustre
+$install_packages_server_ldiskfs = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-server install -y \
+lustre-osd-ldiskfs-mount \
+lustre
+SCRIPT
+
+$install_packages_server_zfs = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-server install -y \
+lustre-osd-zfs-mount \
+lustre \
+zfs
 SCRIPT
 
 $install_packages_client = <<-SCRIPT
@@ -87,7 +92,7 @@ mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
 mount -t lustre /dev/sdb /mnt/mdt
 SCRIPT
 
-$configure_lustre_server_oss = <<-SCRIPT
+$configure_lustre_server_oss_ldiskfs = <<-SCRIPT
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
 mkdir /mnt/ost1
@@ -119,8 +124,8 @@ Vagrant.configure("2") do |config|
     mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
     mxs.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
-    mxs.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_server_kernel, reboot: true
-    mxs.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds
+    mxs.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
+    mxs.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
     mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
     mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
   end
@@ -132,16 +137,19 @@ Vagrant.configure("2") do |config|
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
-    oss.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
+    oss.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    oss.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
+    oss.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
+    ##oss.vm.provision "shell", name: "install_packages_zfs", inline: $install_packages_server_zfs
     oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
-    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss
+    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss_ldiskfs
   end
 
   config.vm.define  "client" do |client|
     client.vm.hostname = "client"
     client.vm.network "private_network", ip: "192.168.10.12"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
-    client.vm.provision "shell", name: "install_packages", inline: $install_packages_client
+    client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
     client.vm.provision "shell", name: "config", inline: $configure_lustre_client
   end
 end

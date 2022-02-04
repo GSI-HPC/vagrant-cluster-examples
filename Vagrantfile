@@ -46,9 +46,24 @@ enabled=1
 EOF
 SCRIPT
 
-$install_packages_server_mds = <<-SCRIPT
-yum install -y e2fsprogs
+$install_packages_server_misc = <<-SCRIPT
+yum --nogpgcheck --disablerepo=* --enablerepo=e2fsprogs-wc install -y e2fsprogs
 yum install -y epel-release
+yum install -y perl
+SCRIPT
+
+$install_packages_server_kernel = <<-SCRIPT
+# Installs Lustre patched kernel packages.
+yum --nogpgcheck --disablerepo=* --enablerepo=lustre-server install -y \
+kernel \
+kernel-devel \
+kernel-headers \
+kernel-tools \
+kernel-tools-libs \
+kernel-tools-libs-devel
+SCRIPT
+
+$install_packages_server_mds = <<-SCRIPT
 yum install -y kmod-lustre
 yum install -y kmod-lustre-osd-ldiskfs
 yum install -y lustre-osd-ldiskfs-mount
@@ -75,10 +90,8 @@ SCRIPT
 $configure_lustre_server_oss = <<-SCRIPT
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
-
 mkdir /mnt/ost1
 mkdir /mnt/ost2
-
 # Mounting OSTs loads lnet module implicitly.
 mount.lustre /dev/sdb /mnt/ost1
 mount.lustre /dev/sdc /mnt/ost2
@@ -105,7 +118,9 @@ Vagrant.configure("2") do |config|
     mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
     mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
-    mxs.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds, reboot: true
+    mxs.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    mxs.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_server_kernel, reboot: true
+    mxs.vm.provision "shell", name: "install_packages", inline: $install_packages_server_mds
     mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
     mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
   end

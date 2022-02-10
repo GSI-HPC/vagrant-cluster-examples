@@ -20,9 +20,16 @@ CentOS release: el7.8.2003
 
 https://wiki.whamcloud.com/display/PUB/Lustre+Support+Matrix
 
+### Changelog
+
+For checking kernel version compatible to a Lustre version.  
+
+https://git.whamcloud.com/?p=fs/lustre-release.git;a=blob;f=lustre/ChangeLog
+
 ### Installation
 
 https://wiki.lustre.org/Installing_the_Lustre_Software
+https://wiki.lustre.org/Creating_Lustre_Object_Storage_Services_(OSS)
 
 ### Command for Checking Status
 

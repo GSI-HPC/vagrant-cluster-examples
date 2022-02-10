@@ -6,13 +6,7 @@ Check different installation examples in the listed directories.
 
 * vagrant
 * virtualbox
-
-## Vagrant
-
-`vagrant box add centos/7`
-
-`vagrant up`
-
+* 
 ## Lustre
 
 ### Support Matrix

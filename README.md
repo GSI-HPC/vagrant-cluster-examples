@@ -1,7 +1,6 @@
 # Lustre Installation with Vagrant
 
-Lustre version: 2.12.5  
-CentOS release: el7.8.2003
+Check different installation examples in the listed directories.
 
 ## Prerequisites
 

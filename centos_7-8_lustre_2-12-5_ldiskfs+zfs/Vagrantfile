@@ -17,20 +17,10 @@ echo "#{hosts}" > /etc/hosts
 SCRIPT
 
 # Makes available newer ZFS version for el7.8.
-# Do not call it for the OSS installation to install the ZFS version from the Lustre server repo instead.
+# Do not call it, if the ZFS version from the Lustre server repo should be used instead.
 $create_repo_zfs = <<-SCRIPT
 yum -y install http://download.zfsonlinux.org/epel/zfs-release.el7_8.noarch.rpm
 yum-config-manager --enable zfs-kmod
-SCRIPT
-
-$create_repo_iij_ad_jp_updates = <<-SCRIPT
-cat > /etc/yum.repos.d/iij_ad_jp_updates.repo <<EOF
-[iij-ad-jp-updates]
-name=iij-ad-jp-updates
-baseurl=http://ftp.iij.ad.jp/pub/linux/centos-vault/centos/7.8.2003/updates/x86_64
-gpgcheck=0
-enabled=0
-EOF
 SCRIPT
 
 $create_repo_e2fsprogs = <<-SCRIPT
@@ -67,7 +57,6 @@ $install_packages_e2fsprogs = <<-SCRIPT
 yum install -y --nogpgcheck --disablerepo=* --enablerepo=e2fsprogs-wc e2fsprogs
 SCRIPT
 
-
 $install_packages_dkms = <<-SCRIPT
 yum list installed | grep -E "^dkms.*2\.7\.1.*"
 exitCode=$?
@@ -76,18 +65,6 @@ if [ $exitCode -ne 0 ]; then
 else
     echo "Skipping installation of package dkms, since it is already installed."
 fi
-SCRIPT
-
-$install_packages_kernel = <<-SCRIPT
-VER="3.10.0-1127.19.1.el7"
-yum install --nogpgcheck --disablerepo=* --enablerepo=iij-ad-jp-updates -y \
-kernel-$VER \
-kernel-devel-$VER \
-kernel-headers-$VER \
-kernel-abi-whitelists-$VER \
-kernel-tools-$VER \
-kernel-tools-libs-$VER \
-kernel-tools-libs-devel-$VER
 SCRIPT
 
 $remove_packages_kernel_tools = <<-SCRIPT
@@ -200,13 +177,12 @@ Vagrant.configure("2") do |config|
     oss.vm.network "private_network", ip: "192.168.10.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
-    oss.vm.provision "shell", name: "create_repo_iij_ad_jp_updates", inline: $create_repo_iij_ad_jp_updates
     oss.vm.provision "shell", name: "create_repo_zfs", inline: $create_repo_zfs
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
     oss.vm.provision "shell", name: "remove_packages_kernel_tools", inline: $remove_packages_kernel_tools
     oss.vm.provision "shell", name: "install_perl", inline: "yum install -y perl"
-    oss.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_kernel, reboot: true
+    oss.vm.provision "shell", name: "install_packages_kernel_patched", inline: $install_packages_kernel_patched, reboot: true
     oss.vm.provision "shell", name: "remove_old_kernel", inline: $remove_old_kernel
     oss.vm.provision "shell", name: "install_packages_dkms", inline: $install_packages_dkms
     oss.vm.provision "shell", name: "install_packages_e2fsprogs", inline: $install_packages_e2fsprogs

@@ -9,7 +9,6 @@ hosts = %q(
 ::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
 
 192.168.10.10 mxs
-192.168.10.11 oss
 )
 
 $create_file_hosts = <<-SCRIPT

@@ -15,13 +15,6 @@ $create_file_hosts = <<-SCRIPT
 echo "#{hosts}" > /etc/hosts
 SCRIPT
 
-# Makes available newer ZFS version for el7.8.
-# Do not call it, if the ZFS version from the Lustre server repo should be used instead.
-$create_repo_zfs = <<-SCRIPT
-yum -y install http://download.zfsonlinux.org/epel/zfs-release.el7_8.noarch.rpm
-yum-config-manager --enable zfs-kmod
-SCRIPT
-
 $create_repo_e2fsprogs = <<-SCRIPT
 cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
 [e2fsprogs-wc]
@@ -171,7 +164,6 @@ Vagrant.configure("2") do |config|
     oss.vm.network "private_network", ip: "192.168.10.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
-    oss.vm.provision "shell", name: "create_repo_zfs", inline: $create_repo_zfs
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
     oss.vm.provision "shell", name: "remove_packages_kernel_tools", inline: $remove_packages_kernel_tools

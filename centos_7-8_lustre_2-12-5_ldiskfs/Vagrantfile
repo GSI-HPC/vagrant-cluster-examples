@@ -9,6 +9,8 @@ hosts = %q(
 ::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
 
 192.168.10.10 mxs
+192.168.10.20 oss
+192.168.10.30 client
 )
 
 $create_file_hosts = <<-SCRIPT
@@ -104,7 +106,7 @@ SCRIPT
 Vagrant.configure("2") do |config|
   config.vm.provider :virtualbox
   config.vm.box = "centos/7"
-  # box_version 2004.01 => CentOS release 7.8.2003
+  # box_version 2004.01 => CentOS 7.8.2003
   config.vm.box_version = "2004.01"
   config.vm.box_check_update = false
   config.vm.synced_folder ".", "/vagrant", disabled: true
@@ -125,7 +127,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.define  "oss" do |oss|
     oss.vm.hostname = "oss"
-    oss.vm.network "private_network", ip: "192.168.10.11"
+    oss.vm.network "private_network", ip: "192.168.10.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
@@ -139,9 +141,10 @@ Vagrant.configure("2") do |config|
 
   config.vm.define  "client" do |client|
     client.vm.hostname = "client"
-    client.vm.network "private_network", ip: "192.168.10.12"
+    client.vm.network "private_network", ip: "192.168.10.30"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
     client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
-    client.vm.provision "shell", name: "config", inline: $configure_lustre_client
+    client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client
   end
 end

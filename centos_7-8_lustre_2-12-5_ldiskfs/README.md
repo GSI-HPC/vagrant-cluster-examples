@@ -1,7 +1,5 @@
 # Vagrant Steps
 
-`vagrant box add centos/7`
-
 Start:  
 
 1. `vagrant up mxs`

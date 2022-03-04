@@ -109,19 +109,31 @@ echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
 SCRIPT
 
 $configure_lustre_server_mgs_mds = <<-SCRIPT
+disk_types="sd vd UNKNOWN"
+for disk_type in $disk_types; do
+  if [ -b "/dev/${disk_type}b" ]; then
+    break
+  fi
+done
 modprobe -v lnet
 modprobe -v lustre
 mkdir /mnt/mdt
-mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
-mount -t lustre /dev/sdb /mnt/mdt
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/${disk_type}b
+mount -t lustre /dev/${disk_type}b /mnt/mdt
 SCRIPT
 
 $configure_lustre_server_oss_zfs = <<-SCRIPT
+disk_types="sd vd UNKNOWN"
+for disk_type in $disk_types; do
+  if [ -b "/dev/${disk_type}b" ]; then
+    break
+  fi
+done
 modprobe -v lnet
 modprobe -v lustre
 modprobe -v zfs
-zpool create ostpool0 /dev/sdb
-zpool create ostpool1 /dev/sdc
+zpool create ostpool0 /dev/${disk_type}b
+zpool create ostpool1 /dev/${disk_type}c
 mkfs.lustre --backfstype=zfs --ost --fsname phoenix --index 0 --mgsnode mxs@tcp0 ostpool0/ost0
 mkfs.lustre --backfstype=zfs --ost --fsname phoenix --index 1 --mgsnode mxs@tcp0 ostpool1/ost1
 mkdir -p /lustre/phoenix/ost0
@@ -140,6 +152,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     v.memory = 512
     v.cpus = 2
   end
+  config.vm.provider :libvirt
+
   config.vm.box = "centos/7"
   config.vm.box_version = "2004.01" # CentOS 7.8.2003
   config.vm.box_check_update = false
@@ -149,7 +163,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define  "mxs" do |mxs|
     mxs.vm.hostname = "mxs"
     mxs.vm.network "private_network", ip: "192.168.10.10"
-    mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
+    mxs.vm.provider :virtualbox do |vbox|
+      vbox.disk :disk, size: "10GB", name: "disk_for_lustre"
+    end
+    mxs.vm.provider :libvirt do |libvirt|
+      libvirt.storage :file,
+                      :path => 'disk_for_lustre.img',
+                      :size => '10G',
+                      :type => 'raw'
+    end
     mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
     mxs.vm.provision "shell", name: "remove_packages_kernel_tools", inline: $remove_packages_kernel_tools
@@ -165,8 +187,20 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define  "oss" do |oss|
     oss.vm.hostname = "oss"
     oss.vm.network "private_network", ip: "192.168.10.20"
-    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
-    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
+    oss.vm.provider :virtualbox do |vbox|
+      oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
+      oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
+    end
+    oss.vm.provider :libvirt do |libvirt|
+      libvirt.storage :file,
+                      :path => 'disk_for_lustre_ost_1.img',
+                      :size => '10G',
+                      :type => 'raw'
+      libvirt.storage :file,
+                      :path => 'disk_for_lustre_ost_2.img',
+                      :size => '10G',
+                      :type => 'raw'
+    end
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
     oss.vm.provision "shell", name: "remove_packages_kernel_tools", inline: $remove_packages_kernel_tools

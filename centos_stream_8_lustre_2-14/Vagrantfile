@@ -130,9 +130,8 @@ mkdir /lustre
 mount -t lustre mxs@tcp0:/phoenix /lustre
 SCRIPT
 
-Vagrant.configure("2") do |config|
-  config.vm.provider :virtualbox
-  config.vm.provider "virtualbox" do |v|
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.provider :virtualbox do |v|
     v.memory = 512
     v.cpus = 2
   end

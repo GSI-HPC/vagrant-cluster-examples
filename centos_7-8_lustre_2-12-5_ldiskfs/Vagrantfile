@@ -4,8 +4,8 @@
 VAGRANTFILE_API_VERSION = "2"
 ENV["VAGRANT_EXPERIMENTAL"] = "disks"
 
-$whamcloud_url = ENV['WHAMCLOUD_MIRROR'] || \
-                 'https://downloads.whamcloud.com/public'
+$URL_MIRROR_LUSTRE = ENV["URL_MIRROR_LUSTRE"] || \
+"https://downloads.whamcloud.com/public"
 
 hosts = %q(
 127.0.0.1     localhost localhost.localdomain localhost4 localhost4.localdomain4
@@ -24,7 +24,7 @@ $create_repo_e2fsprogs = <<-SCRIPT
 cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
 [e2fsprogs-wc]
 name=e2fsprogs-wc
-baseurl=#{$whamcloud_url}/e2fsprogs/1.44.3.wc1/el7
+baseurl=#{$URL_MIRROR_LUSTRE}/e2fsprogs/1.44.3.wc1/el7
 gpgcheck=0
 enabled=0
 EOF
@@ -34,7 +34,7 @@ $create_repo_lustre_server = <<-SCRIPT
 cat > /etc/yum.repos.d/lustre-server.repo <<EOF
 [lustre-server]
 name=lustre-server
-baseurl=#{$whamcloud_url}/lustre/lustre-2.12.5/el7.8.2003/server
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.12.5/el7.8.2003/server
 gpgcheck=0
 enabled=0
 EOF
@@ -44,7 +44,7 @@ $create_repo_lustre_client = <<-SCRIPT
 cat > /etc/yum.repos.d/lustre-client.repo <<EOF
 [lustre-client]
 name=lustre-client
-baseurl=#{$whamcloud_url}/lustre/lustre-2.12.5/el7.8.2003/client
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.12.5/el7.8.2003/client
 gpgcheck=0
 enabled=0
 EOF

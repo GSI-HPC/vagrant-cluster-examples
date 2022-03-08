@@ -4,9 +4,9 @@ Check different installation examples in the listed directories.
 
 ## Prerequisites
 
-* vagrant
-* virtualbox
-* 
+* [Vagrant](https://www.vagrantup.com/)     - Version tested: 2.2.14
+* [VirtualBox](https://www.virtualbox.org/) - Version tested: 6.1.30
+
 ## Lustre
 
 ### Support Matrix

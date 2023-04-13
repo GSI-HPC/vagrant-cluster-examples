@@ -84,25 +84,28 @@ echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
 SCRIPT
 
 $configure_lustre_server_mgs_mds = <<-SCRIPT
+modprobe -v lustre
 mkdir /mnt/mdt
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
-# Mounting Lustre loads lnet module implicitly.
+# Mounting Lustre loads lnet module implicitly
 mount -t lustre /dev/sdb /mnt/mdt
 SCRIPT
 
 $configure_lustre_server_oss_ldiskfs = <<-SCRIPT
+modprobe -v lustre
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
 mkdir /mnt/ost1
 mkdir /mnt/ost2
-# Mounting OSTs loads lnet module implicitly.
+# Mounting OSTs loads lnet module implicitly
 mount.lustre /dev/sdb /mnt/ost1
 mount.lustre /dev/sdc /mnt/ost2
 SCRIPT
 
 $configure_lustre_client = <<-SCRIPT
+modprobe -v lustre
 mkdir /lustre
-# Mounting Lustre endpoint loads lnet and lustre module implicitly.
+# Mounting Lustre endpoint loads lnet and lustre module implicitly
 mount -t lustre mxs@tcp0:/phoenix /lustre
 SCRIPT
 

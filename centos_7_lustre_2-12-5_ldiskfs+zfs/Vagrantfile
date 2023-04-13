@@ -131,6 +131,7 @@ mount -t lustre ostpool1/ost1 /lustre/phoenix/ost1
 SCRIPT
 
 $configure_lustre_client = <<-SCRIPT
+modprobe -v lustre
 mkdir /lustre
 mount -t lustre mxs@tcp0:/phoenix /lustre
 SCRIPT

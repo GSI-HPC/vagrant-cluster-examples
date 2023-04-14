@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Starting Management and Metadata Server (MXS)"
 
 vagrant up mxs

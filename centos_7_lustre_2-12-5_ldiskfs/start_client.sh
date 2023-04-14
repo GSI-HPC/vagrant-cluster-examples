@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Starting Client"
 
 vagrant up client
@@ -14,9 +16,9 @@ echo ""
 vagrant ssh client -c "lfs df -h; exit" 2>/dev/null
 echo "*******************************************************************************"
 
-FOUND=`vagrant ssh client -c "lfs df -h | grep -c filesystem_summary; exit" 2>/dev/null`
+FOUND=$(vagrant ssh client -c 'lfs df -h' 2>/dev/null | grep -c filesystem_summary)
 
-if [ $FOUND -eq 1 ]; then
+if [ "$FOUND" -eq 1 ]; then
   echo "Lustre filesystem information found on client!"
 else
   echo "No Lustre filesystem information found on client!"

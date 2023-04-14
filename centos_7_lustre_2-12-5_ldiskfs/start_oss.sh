@@ -1,3 +1,5 @@
+#!/bin/sh
+
 echo "Starting Object Storage Server (OSS)"
 
 vagrant up oss

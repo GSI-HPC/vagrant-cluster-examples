@@ -1,9 +1,9 @@
 # Lustre 2.12.5 with LDISKFS on CentOS 7.8
 
-## Start Cluster
+Starting complete cluster:  
 
 ```shell
-./cluster_start.sh
+./setup_cluster.sh
 ```
 
 Components can be started separately:  

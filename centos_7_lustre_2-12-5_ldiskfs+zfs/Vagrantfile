@@ -11,9 +11,9 @@ hosts = %q(
 127.0.0.1     localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
 
-192.168.10.10 mxs
-192.168.10.20 oss
-192.168.10.30 client
+192.168.56.10 mxs
+192.168.56.20 oss
+192.168.56.30 client
 )
 
 $create_file_hosts = <<-SCRIPT
@@ -149,7 +149,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.define  "mxs" do |mxs|
     mxs.vm.hostname = "mxs"
-    mxs.vm.network "private_network", ip: "192.168.10.10"
+    mxs.vm.network "private_network", ip: "192.168.56.10"
     mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
     mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
     mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
@@ -165,7 +165,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.define  "oss" do |oss|
     oss.vm.hostname = "oss"
-    oss.vm.network "private_network", ip: "192.168.10.20"
+    oss.vm.network "private_network", ip: "192.168.56.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
     oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
@@ -183,7 +183,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   config.vm.define  "client" do |client|
     client.vm.hostname = "client"
-    client.vm.network "private_network", ip: "192.168.10.30"
+    client.vm.network "private_network", ip: "192.168.56.30"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
     client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
     client.vm.provision "shell", name: "configure_lnet", inline: $configure_lnet

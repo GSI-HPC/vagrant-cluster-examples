@@ -1,0 +1,249 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+ENV["VAGRANT_EXPERIMENTAL"] = "disks"
+
+$URL_MIRROR_LUSTRE = ENV["URL_MIRROR_LUSTRE"] || \
+"https://downloads.whamcloud.com/public"
+
+hosts = %q(
+127.0.0.1     localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+192.168.56.10 mxs
+192.168.56.20 oss
+192.168.56.30 client
+)
+
+$create_file_hosts = <<-SCRIPT
+echo "#{hosts}" > /etc/hosts
+SCRIPT
+
+$create_repo_e2fsprogs = <<-SCRIPT
+cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
+[e2fsprogs-wc]
+name=e2fsprogs-wc
+baseurl=#{$URL_MIRROR_LUSTRE}/e2fsprogs/1.44.3.wc1/el7
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$create_repo_lustre_server = <<-SCRIPT
+cat > /etc/yum.repos.d/lustre-server.repo <<EOF
+[lustre-server]
+name=lustre-server
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.12.5/el7.8.2003/server
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$create_repo_lustre_client = <<-SCRIPT
+cat > /etc/yum.repos.d/lustre-client.repo <<EOF
+[lustre-client]
+name=lustre-client
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.12.5/el7.8.2003/client
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$install_packages_server_misc = <<-SCRIPT
+yum --nogpgcheck --disablerepo=* --enablerepo=e2fsprogs-wc install -y e2fsprogs
+yum install -y epel-release
+yum install -y perl
+SCRIPT
+
+$install_packages_patched_kernel = <<-SCRIPT
+yum --nogpgcheck --disablerepo=* --enablerepo=lustre-server install -y \
+kernel \
+kernel-devel \
+kernel-headers \
+kernel-tools \
+kernel-tools-libs \
+kernel-tools-libs-devel
+SCRIPT
+
+$install_packages_server_ldiskfs = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-server install -y \
+lustre-osd-ldiskfs-mount \
+lustre
+SCRIPT
+
+$install_packages_client = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-client install -y \
+kmod-lustre-client \
+lustre-client-devel
+SCRIPT
+
+$install_mpi_client = <<-SCRIPT
+echo "Installing packages required for OpenMPI and PMIx"
+yum install epel-release -y
+yum install wget git bash hostname gcc gcc-gfortran gcc-c++ make file autoconf automake libtool zlib-devel python3-devel -y
+yum install libmnl lsof numactl-libs ethtool tcl tk emacs -y 
+yum install munge munge-libs munge-devel -y
+yum install libnl3 libnl3-devel -y
+yum install libevent libevent-devel -y
+yum install rdma-core-devel -y
+yum install hwloc-devel -y
+yum install libibverbs-devel -y
+# Lustre client once more ?
+cat <<EOF >/etc/yum.repos.d/lustre-client.repo
+[lustre-client]
+name=Lustre Client
+gpgcheck=0
+baseurl=http://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/client
+EOF
+yum install -y lustre-client
+# PMIx v4.2.3
+export VPMIX_VERSION=4.2.3
+echo "Installing PMIx version: " $VPMIX_VERSION	
+mkdir -p /tmp/pmix
+cd /tmp/pmix
+wget -c https://github.com/openpmix/openpmix/releases/download/v$VPMIX_VERSION/pmix-$VPMIX_VERSION.tar.gz
+tar xf pmix-$VPMIX_VERSION.tar.gz
+cd pmix-$VPMIX_VERSION
+./configure --prefix=/usr/local --with-munge=/usr && \
+make -j 6
+make -j 6 install      
+rm -rf /tmp/pmix
+# UCX v1.14.0
+export UCX_VERSION=1.14.0
+echo "Installing UCX version:  " $UCX_VERSION
+cd /
+mkdir -p /tmp/ucx && wget -q -nc --no-check-certificate -P /tmp/ucx https://github.com/openucx/ucx/releases/download/v$UCX_VERSION/ucx-$UCX_VERSION.tar.gz
+mkdir -p /tmp/ucx && tar -x -f /tmp/ucx/ucx-$UCX_VERSION.tar.gz -C /tmp/ucx -z
+cd /tmp/ucx/ucx-$UCX_VERSION &&   ./configure --prefix=/usr/local/ --disable-assertions --disable-debug --disable-doxygen-doc --disable-logging --disable-params-check --enable-optimizations --disable-cma --without-cuda
+make -j 6
+make -j 6 install
+rm -rf /tmp/ucx/ucx-$UCX_VERSION /tmp/ucx/ucx-$UCX_VERSION.tar.gz
+# OpenMPI v4.1.5
+export OMPI_DIR=/usr/local
+export OMPI_VERSION=4.1.5
+export OMPI_URL="https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-$OMPI_VERSION.tar.bz2"
+echo "Installing OpenMPI version: " $OMPI_VERSION
+mkdir -p /tmp/ompi
+cd /tmp/ompi
+wget -c -O openmpi-$OMPI_VERSION.tar.bz2 $OMPI_URL && tar -xjf openmpi-$OMPI_VERSION.tar.bz2
+cd /tmp/ompi/openmpi-$OMPI_VERSION
+./configure --prefix=$OMPI_DIR --with-pmix=/usr/local --with-libevent=/usr --enable-shared  --without-verbs --with-hwloc --with-ucx=/usr/local/ --with-lustre --with-slurm --enable-mca-no-build=btl-uct  
+make -j 6
+make -j 6 install
+rm -rf /tmp/ompi
+# IOR for full I/O feature testing
+export IOR_VERSION=3.3.0
+export COMPILER=gfortran
+cd /
+mkdir -p /tmp/ior
+cd /tmp/ior/ && git clone https://github.com/hpc/ior.git
+cd /tmp/ior/ior  && git checkout $IOR_VERSION && ./bootstrap && ./configure --prefix=/usr/local && make -j 6 install
+rm -rf /tmp/ior
+# EPOCH I/O
+export PATH=/usr/local/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+export EPOCH_VERSION=4.19.0
+echo " Installing EPOCH version: " $EPOCH_VERSION
+cd /usr/local/
+rm -rf epoch
+git clone --recursive https://github.com/Warwick-Plasma/epoch.git
+cd epoch
+git checkout v$EPOCH_VERSION
+cd epoch1d
+sed -i 's/#DEFINES += $(D)PARTICLE_ID$/DEFINES += $(D)PARTICLE_ID/g' Makefile
+make -j 6
+cp bin/epoch1d /usr/local/bin
+#make sdfutils  
+cd ../epoch2d
+sed -i 's/#DEFINES += $(D)PARTICLE_ID$/DEFINES += $(D)PARTICLE_ID/g' Makefile  
+make -j 6
+cp bin/epoch2d /usr/local/bin
+#make sdfutils  
+cd ../epoch3d
+sed -i 's/#DEFINES += $(D)PARTICLE_ID$/DEFINES += $(D)PARTICLE_ID/g' Makefile  
+make -j 6
+cp bin/epoch3d /usr/local/bin
+#make sdfutils
+SCRIPT
+
+$configure_lustre_server_lnet = <<-SCRIPT
+# Should be set before lnet module is loaded.
+echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
+SCRIPT
+
+$configure_lustre_server_mgs_mds = <<-SCRIPT
+modprobe -v lustre
+mkdir /mnt/mdt
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
+# Mounting Lustre loads lnet module implicitly
+mount -t lustre /dev/sdb /mnt/mdt
+SCRIPT
+
+$configure_lustre_server_oss_ldiskfs = <<-SCRIPT
+modprobe -v lustre
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
+mkdir /mnt/ost1
+mkdir /mnt/ost2
+# Mounting OSTs loads lnet module implicitly
+mount.lustre /dev/sdb /mnt/ost1
+mount.lustre /dev/sdc /mnt/ost2
+SCRIPT
+
+$configure_lustre_client = <<-SCRIPT
+modprobe -v lustre
+mkdir /lustre
+# Mounting Lustre endpoint loads lnet and lustre module implicitly
+mount -t lustre mxs@tcp0:/phoenix /lustre
+SCRIPT
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.provider :virtualbox do |v|
+    v.memory = 1024
+    v.cpus = 2
+  end
+  config.vm.box = "centos/7"
+  # box_version 2004.01 => CentOS 7.8.2003
+  config.vm.box_version = "2004.01"
+  config.vm.box_check_update = false
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provision "shell", name: "create_file_hosts", inline: $create_file_hosts
+
+  config.vm.define  "mxs" do |mxs|
+    mxs.vm.hostname = "mxs"
+    mxs.vm.network "private_network", ip: "192.168.56.10"
+    mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
+    mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    mxs.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    mxs.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
+    mxs.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
+    mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
+  end
+
+  config.vm.define  "oss" do |oss|
+    oss.vm.hostname = "oss"
+    oss.vm.network "private_network", ip: "192.168.56.20"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
+    oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    oss.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    oss.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
+    oss.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
+    oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss_ldiskfs
+  end
+
+  config.vm.define  "client" do |client|
+    client.vm.hostname = "client"
+    client.vm.network "private_network", ip: "192.168.56.30"
+    client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
+    client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
+    client.vm.provision "shell", name: "install_mpi_client", inline: $install_mpi_client
+    client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client    
+  end
+end

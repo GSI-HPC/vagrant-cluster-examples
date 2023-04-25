@@ -78,7 +78,8 @@ kmod-lustre-client \
 lustre-client-devel
 SCRIPT
 
-$install_mpi_client = <<-SCRIPT
+
+$install_mpi_prerequisite_client = <<-SCRIPT
 echo "Installing packages required for OpenMPI and PMIx"
 yum install epel-release -y
 yum install wget git bash hostname gcc gcc-gfortran gcc-c++ make file autoconf automake libtool zlib-devel python3-devel -y
@@ -90,13 +91,16 @@ yum install rdma-core-devel -y
 yum install hwloc-devel -y
 yum install libibverbs-devel -y
 # Lustre client once more ?
-cat <<EOF >/etc/yum.repos.d/lustre-client.repo
-[lustre-client]
-name=Lustre Client
-gpgcheck=0
-baseurl=http://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/client
-EOF
-yum install -y lustre-client
+#cat <<EOF >/etc/yum.repos.d/lustre-client.repo
+#[lustre-client]
+#name=Lustre Client
+#gpgcheck=0
+#baseurl=http://downloads.whamcloud.com/public/lustre/lustre-2.12.5/el7.8.2003/client
+#EOF
+#yum install -y lustre-client
+SCRIPT
+
+$install_pmix_client = <<-SCRIPT
 # PMIx v4.2.3
 export VPMIX_VERSION=4.2.3
 echo "Installing PMIx version: " $VPMIX_VERSION	
@@ -109,6 +113,9 @@ cd pmix-$VPMIX_VERSION
 make -j 6
 make -j 6 install      
 rm -rf /tmp/pmix
+SCRIPT
+
+$install_ucx_client = <<-SCRIPT
 # UCX v1.14.0
 export UCX_VERSION=1.14.0
 echo "Installing UCX version:  " $UCX_VERSION
@@ -119,6 +126,9 @@ cd /tmp/ucx/ucx-$UCX_VERSION &&   ./configure --prefix=/usr/local/ --disable-ass
 make -j 6
 make -j 6 install
 rm -rf /tmp/ucx/ucx-$UCX_VERSION /tmp/ucx/ucx-$UCX_VERSION.tar.gz
+SCRIPT
+
+$install_openmpi_client = <<-SCRIPT
 # OpenMPI v4.1.5
 export OMPI_DIR=/usr/local
 export OMPI_VERSION=4.1.5
@@ -132,6 +142,9 @@ cd /tmp/ompi/openmpi-$OMPI_VERSION
 make -j 6
 make -j 6 install
 rm -rf /tmp/ompi
+SCRIPT
+
+$install_ior_client = <<-SCRIPT
 # IOR for full I/O feature testing
 export IOR_VERSION=3.3.0
 export COMPILER=gfortran
@@ -140,9 +153,13 @@ mkdir -p /tmp/ior
 cd /tmp/ior/ && git clone https://github.com/hpc/ior.git
 cd /tmp/ior/ior  && git checkout $IOR_VERSION && ./bootstrap && ./configure --prefix=/usr/local && make -j 6 install
 rm -rf /tmp/ior
+SCRIPT
+
+$install_epoch_client = <<-SCRIPT
 # EPOCH I/O
 export PATH=/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+export COMPILER=gfortran
 export EPOCH_VERSION=4.19.0
 echo " Installing EPOCH version: " $EPOCH_VERSION
 cd /usr/local/
@@ -242,7 +259,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     client.vm.network "private_network", ip: "192.168.56.30"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
     client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
-    client.vm.provision "shell", name: "install_mpi_client", inline: $install_mpi_client
+    client.vm.provision "shell", name: "install_mpi_prerequisite_client", inline: $install_mpi_prerequisite_client
+    client.vm.provision "shell", name: "install_pmix_client", inline: $install_pmix_client    
+    client.vm.provision "shell", name: "install_ucx_client", inline: $install_ucx_client
+    client.vm.provision "shell", name: "install_openmpi_client", inline: $install_openmpi_client    
+    client.vm.provision "shell", name: "install_ior_client", inline: $install_ior_client
+    client.vm.provision "shell", name: "install_epoch_client", inline: $install_epoch_client    
     client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
     client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client    
   end

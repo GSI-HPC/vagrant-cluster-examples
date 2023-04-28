@@ -1,0 +1,15 @@
+- name: "Mount Lustre MDT"
+  hosts: localhost
+  connection: local
+  tasks:
+    # NOT SUPPORTED by ansible 2.9.27?
+    ## - name: "Mount Lustre MDT"
+    ##   ansible.posix.mount:
+    ##     src: /dev/sdb
+    ##     path: /mnt/mdt
+    ##     fstype: lustre
+    ##     boot: false
+    ##     opts: ro,noauto
+    ##     state: present
+    - name: "Mount Lustre MDT"
+      ansible.builtin.command: mount -t lustre /dev/sdb /mnt/mdt

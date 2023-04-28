@@ -1,0 +1,15 @@
+- name: "Mount Lustre on client"
+  hosts: localhost
+  connection: local
+  tasks:
+    # NOT SUPPORTED by ansible 2.9.27?
+    ## - name: "Mount Lustre on client"
+    ##   ansible.posix.mount:
+    ##     src: mxs@tcp0:/phoenix
+    ##     path: /lustre
+    ##     fstype: lustre
+    ##     boot: false
+    ##     opts: ro,noauto
+    ##     state: present
+    - name: "Mount Lustre on client"
+      ansible.builtin.command: mount -t lustre mxs@tcp0:/phoenix /lustre

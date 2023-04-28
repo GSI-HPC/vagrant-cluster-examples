@@ -50,10 +50,16 @@ enabled=0
 EOF
 SCRIPT
 
+$install_packages_client_misc = <<-SCRIPT
+yum install -y epel-release
+yum install -y ansible
+SCRIPT
+
 $install_packages_server_misc = <<-SCRIPT
 yum --nogpgcheck --disablerepo=* --enablerepo=e2fsprogs-wc install -y e2fsprogs
 yum install -y epel-release
 yum install -y perl
+yum install -y ansible
 SCRIPT
 
 $install_packages_patched_kernel = <<-SCRIPT
@@ -78,35 +84,22 @@ kmod-lustre-client \
 lustre-client
 SCRIPT
 
-$configure_lustre_server_lnet = <<-SCRIPT
-# Should be set before lnet module is loaded.
-echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
-SCRIPT
-
-$configure_lustre_server_mgs_mds = <<-SCRIPT
+$format_lustre_server_mxs = <<-SCRIPT
 modprobe -v lustre
 mkdir /mnt/mdt
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
-# Mounting Lustre loads lnet module implicitly
-mount -t lustre /dev/sdb /mnt/mdt
 SCRIPT
 
-$configure_lustre_server_oss_ldiskfs = <<-SCRIPT
+$format_lustre_server_oss = <<-SCRIPT
 modprobe -v lustre
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
 mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
 mkdir /mnt/ost1
 mkdir /mnt/ost2
-# Mounting OSTs loads lnet module implicitly
-mount.lustre /dev/sdb /mnt/ost1
-mount.lustre /dev/sdc /mnt/ost2
 SCRIPT
 
-$configure_lustre_client = <<-SCRIPT
-modprobe -v lustre
+$mkdir_lustre_client = <<-SCRIPT
 mkdir /lustre
-# Mounting Lustre endpoint loads lnet and lustre module implicitly
-mount -t lustre mxs@tcp0:/phoenix /lustre
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -121,7 +114,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.provision "shell", name: "create_file_hosts", inline: $create_file_hosts
 
-  config.vm.define  "mxs" do |mxs|
+  config.vm.define "mxs" do |mxs|
     mxs.vm.hostname = "mxs"
     mxs.vm.network "private_network", ip: "192.168.56.10"
     mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
@@ -130,11 +123,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     mxs.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
     mxs.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
     mxs.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
-    mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
-    mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
+    mxs.vm.provision "shell", name: "format_lustre_server_mxs", inline: $format_lustre_server_mxs
   end
 
-  config.vm.define  "oss" do |oss|
+  config.vm.define "oss" do |oss|
     oss.vm.hostname = "oss"
     oss.vm.network "private_network", ip: "192.168.56.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
@@ -144,16 +136,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     oss.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
     oss.vm.provision "shell", name: "install_packages_kernel", inline: $install_packages_patched_kernel, reboot: true
     oss.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
-    oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
-    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss_ldiskfs
+    oss.vm.provision "shell", name: "format_lustre_server_oss", inline: $format_lustre_server_oss
   end
 
-  config.vm.define  "client" do |client|
+  config.vm.define "client" do |client|
     client.vm.hostname = "client"
     client.vm.network "private_network", ip: "192.168.56.30"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
+    client.vm.provision "shell", name: "install_packages_client_misc", inline: $install_packages_client_misc
     client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
-    client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
-    client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client
+    client.vm.provision "shell", name: "mkdir_lustre_client", inline: $mkdir_lustre_client
   end
 end

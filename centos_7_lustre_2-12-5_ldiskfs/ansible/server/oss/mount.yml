@@ -1,0 +1,18 @@
+- name: "Mount Lustre OSTs"
+  hosts: localhost
+  connection: local
+  tasks:
+    # NOT SUPPORTED by ansible 2.9.27?
+    ## - name: "Mount Lustre OST1"
+    ##   ansible.posix.mount:
+    ##     src: /dev/sdb
+    ##     path: /mnt/ost1
+    ##     fstype: lustre
+    ##     boot: false
+    ##     opts: ro,noauto
+    ##     state: present
+    ## next OST2...
+    - name: "Mount Lustre OST1"
+      ansible.builtin.command: mount.lustre /dev/sdb /mnt/ost1
+    - name: "Mount Lustre OST2"
+      ansible.builtin.command: mount.lustre /dev/sdc /mnt/ost2

@@ -1,0 +1,6 @@
+- name: "Load Lustre kernel modules"
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Load modules
+      ansible.builtin.command: modprobe -v lustre

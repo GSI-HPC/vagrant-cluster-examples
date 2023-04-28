@@ -5,6 +5,7 @@ Check different installation examples in the listed directories.
 ## Prerequisites
 
 * [Vagrant](https://www.vagrantup.com/)     - Version tested: 2.2.14
+  * `vagrant plugin install vagrant-scp`
 * [VirtualBox](https://www.virtualbox.org/) - Version tested: 6.1.30
 
 ## Lustre
@@ -21,8 +22,8 @@ https://git.whamcloud.com/?p=fs/lustre-release.git;a=blob;f=lustre/ChangeLog
 
 ### Installation
 
-https://wiki.lustre.org/Installing_the_Lustre_Software
-https://wiki.lustre.org/Creating_Lustre_Object_Storage_Services_(OSS)
+https://wiki.lustre.org/Installing\_the\_Lustre\_Software
+https://wiki.lustre.org/Creating\_Lustre\_Object\_Storage\_Services_(OSS)
 
 ### Command for Checking Status
 

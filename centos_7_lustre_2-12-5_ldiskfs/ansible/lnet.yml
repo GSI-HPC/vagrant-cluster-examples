@@ -1,0 +1,12 @@
+- name: "LNET configuration"
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: "Creating LNET config file"
+      copy:
+        dest: "/etc/modprobe.d/lnet.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          options lnet networks=tcp0(eth1)

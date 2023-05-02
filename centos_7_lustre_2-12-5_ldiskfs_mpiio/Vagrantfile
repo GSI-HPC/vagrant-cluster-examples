@@ -75,7 +75,7 @@ SCRIPT
 $install_packages_client = <<-SCRIPT
 yum --nogpgcheck --enablerepo=lustre-client install -y \
 kmod-lustre-client \
-lustre-client-devel
+lustre-client
 SCRIPT
 
 

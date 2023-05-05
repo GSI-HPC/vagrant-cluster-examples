@@ -1,0 +1,145 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+ENV["VAGRANT_EXPERIMENTAL"] = "disks"
+
+$URL_MIRROR_LUSTRE = ENV["URL_MIRROR_LUSTRE"] || \
+"https://downloads.whamcloud.com/public"
+
+hosts = %q(
+127.0.0.1     localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1           localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+192.168.56.10 mxs
+192.168.56.20 oss
+192.168.56.30 client
+)
+
+$create_file_hosts = <<-SCRIPT
+echo "#{hosts}" > /etc/hosts
+SCRIPT
+
+$create_repo_e2fsprogs = <<-SCRIPT
+cat > /etc/yum.repos.d/e2fsprogs-wc.repo <<EOF
+[e2fsprogs-wc]
+name=e2fsprogs-wc
+baseurl=#{$URL_MIRROR_LUSTRE}/e2fsprogs/1.45.6.wc1/el8
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$create_repo_lustre_server = <<-SCRIPT
+cat > /etc/yum.repos.d/lustre-server.repo <<EOF
+[lustre-server]
+name=lustre-server
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.15.2/el8.7/server
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$create_repo_lustre_client = <<-SCRIPT
+cat > /etc/yum.repos.d/lustre-client.repo <<EOF
+[lustre-client]
+name=lustre-client
+baseurl=#{$URL_MIRROR_LUSTRE}/lustre/lustre-2.15.2/el8.7/client
+gpgcheck=0
+enabled=0
+EOF
+SCRIPT
+
+$install_packages_server_misc = <<-SCRIPT
+yum --nogpgcheck --disablerepo=* --enablerepo=powertools install -y kernel-tools-libs-devel-4.18.0-425.3.1.el8.x86_64
+yum --nogpgcheck --disablerepo=* --enablerepo=e2fsprogs-wc install -y e2fsprogs
+SCRIPT
+
+$install_packages_server_ldiskfs = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-server install -y \
+lustre-osd-ldiskfs-mount \
+lustre
+SCRIPT
+
+$install_packages_client = <<-SCRIPT
+yum --nogpgcheck --enablerepo=lustre-client install -y \
+kmod-lustre-client \
+lustre-client
+SCRIPT
+
+$configure_lustre_server_lnet = <<-SCRIPT
+# Should be set before lnet module is loaded.
+echo "options lnet networks=tcp0(eth1)" > /etc/modprobe.d/lnet.conf
+SCRIPT
+
+$configure_lustre_server_mgs_mds = <<-SCRIPT
+mkdir /mnt/mdt
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgs --mdt --index=0 /dev/sdb
+# Mounting Lustre loads lnet module implicitly.
+mount -t lustre /dev/sdb /mnt/mdt
+SCRIPT
+
+$configure_lustre_server_oss_ldiskfs = <<-SCRIPT
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=1 /dev/sdb
+mkfs.lustre --backfstype=ldiskfs --fsname=phoenix --mgsnode=mxs@tcp0 --ost --index=2 /dev/sdc
+mkdir /mnt/ost1
+mkdir /mnt/ost2
+# Mounting OSTs loads lnet module implicitly.
+mount.lustre /dev/sdb /mnt/ost1
+mount.lustre /dev/sdc /mnt/ost2
+SCRIPT
+
+$configure_lustre_client = <<-SCRIPT
+mkdir /lustre
+# Mounting Lustre endpoint loads lnet and lustre module implicitly.
+mount -t lustre mxs@tcp0:/phoenix /lustre
+SCRIPT
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.provider :virtualbox do |v|
+    v.memory = 512
+    v.cpus = 2
+  end
+
+  config.vm.box = "bento/rockylinux-8"  # Rocky Linux 8.7
+  config.vm.box_version = "202212.11.0" # Kernel 4.18.0-425.3.1
+  config.vm.box_check_update = false
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provision "shell", name: "create_file_hosts", inline: $create_file_hosts
+
+  config.vm.define  "mxs" do |mxs|
+    mxs.vm.hostname = "mxs"
+    mxs.vm.network "private_network", ip: "192.168.56.10"
+    mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
+    mxs.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    mxs.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    mxs.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    mxs.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
+    mxs.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    mxs.vm.provision "shell", name: "configure_mgs_mds", inline: $configure_lustre_server_mgs_mds
+  end
+
+  config.vm.define  "oss" do |oss|
+    oss.vm.hostname = "oss"
+    oss.vm.network "private_network", ip: "192.168.56.20"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
+    oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_2"
+    oss.vm.provision "shell", name: "create_repo_e2fsprogs", inline: $create_repo_e2fsprogs
+    oss.vm.provision "shell", name: "create_repo_lustre_server", inline: $create_repo_lustre_server
+    oss.vm.provision "shell", name: "install_packages_misc", inline: $install_packages_server_misc
+    oss.vm.provision "shell", name: "install_packages_ldiskfs", inline: $install_packages_server_ldiskfs
+    oss.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss_ldiskfs
+  end
+
+  config.vm.define  "client" do |client|
+    client.vm.hostname = "client"
+    client.vm.network "private_network", ip: "192.168.56.30"
+    client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
+    client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
+    client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client
+  end
+
+end

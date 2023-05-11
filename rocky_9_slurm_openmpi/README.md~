@@ -1,0 +1,8 @@
+# openMPI VM Cluster with SLURM 21.08
+
+VM Cluster for openMPI Slurm feature test. 
+Only works with the VirtualBox provider.
+
+
+
+Based on https://github.com/jandom/gromacs-slurm-openmpi-vagrant.

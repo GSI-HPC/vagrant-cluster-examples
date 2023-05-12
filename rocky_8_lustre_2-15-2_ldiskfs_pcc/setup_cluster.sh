@@ -24,12 +24,19 @@ fi
 
 sleep 2s
 
-./start_client.sh
+NUM_CLIENT=2
+for i in $(seq 1 $NUM_CLIENT)
+do
 
-if [ $? -eq 0 ]; then
-  echo "Successfully started client"
-else
-  echo "Failed to start client" >&2
-  exit 1
-fi
+CLIENT_NAME="client$i"
+
+  ./start_client.sh $i
+  if [ $? -eq 0 ]; then
+    echo "Successfully started $CLIENT_NAME"
+  else
+    echo "Failed to start $CLIENT_NAME" >&2
+    exit 1
+  fi
+
+done
 

@@ -13,7 +13,8 @@ hosts = %q(
 
 192.168.56.10 mxs
 192.168.56.20 oss
-192.168.56.30 client
+192.168.56.30 client1
+192.168.56.31 client2
 )
 
 $create_file_hosts = <<-SCRIPT
@@ -99,11 +100,34 @@ $configure_lustre_server_mds_pcc = <<-SCRIPT
 lctl set_param mdt.phoenix-MDT0000.hsm_control=enabled
 SCRIPT
 
+$partition_lustre_client_pcc = <<-SCRIPT
+parted --script /dev/sdb mklabel msdos mkpart primary ext4 1M 1GB
+SCRIPT
+
+$format_lustre_client_pcc = <<-SCRIPT
+mkfs.ext4 /dev/sdb1
+e2label /dev/sdb1 pcc
+mkdir -p /mnt/pcc
+# TODO: create /etc/fstab
+# /dev/sdb1       /mnt/pcc        ext4    defaults        0       0
+mount /dev/sdb1 /mnt/pcc
+SCRIPT
+
+$init_lustre_client_user = <<-SCRIPT
+mkdir -p /lustre/vagrant/scratch
+chown -R vagrant:vagrant /lustre/vagrant
+# project id for vagrant group on a scratch directory on Lustre with PCC = 1000
+lfs project -s -p 1000 -r /lustre/vagrant/scratch/
+lfs setquota -p 1000 -b 90M -B 100M -i 1100 -I 1500 /lustre/vagrant/scratch/
+lfs quota -p 1000 /lustre -h
+SCRIPT
+
 $configure_lustre_client_pcc = <<-SCRIPT
-mkdir /mnt/pcc
-lhsmtool_posix --daemon --hsm-root /mnt/pcc --archive=1 /lustre > /tmp/lhsmtool.out 2>&1
 # $ id vagrant -> uid=1000(vagrant) gid=1000(vagrant) groups=1000(vagrant)
-lctl pcc add /lustre /mnt/pcc --param "uid={1000} rwid=1 auto_attach=1"
+# project id for vagrant group on a scratch directory on Lustre with PCC = 1000
+mkdir -p /mnt/pcc/1000
+lhsmtool_posix --daemon --hsm-root /mnt/pcc/1000 --archive=1000 /lustre > /tmp/lhsmtool_1000.out 2>&1
+lctl pcc add /lustre /mnt/pcc/1000 --param "projid={1000}&gid={1000} rwid=1000 auto_attach=1"
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -119,7 +143,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.provision "shell", name: "create_file_hosts", inline: $create_file_hosts
 
-  config.vm.define  "mxs" do |mxs|
+  config.vm.define "mxs" do |mxs|
     mxs.vm.hostname = "mxs"
     mxs.vm.network "private_network", ip: "192.168.56.10"
     mxs.vm.disk :disk, size: "10GB", name: "disk_for_lustre"
@@ -132,7 +156,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     mxs.vm.provision "shell", name: "configure_mds_hsm", inline: $configure_lustre_server_mds_pcc
   end
 
-  config.vm.define  "oss" do |oss|
+  config.vm.define "oss" do |oss|
     oss.vm.hostname = "oss"
     oss.vm.network "private_network", ip: "192.168.56.20"
     oss.vm.disk :disk, size: "10GB", name: "disk_for_lustre_ost_1"
@@ -145,14 +169,30 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     oss.vm.provision "shell", name: "configure_oss", inline: $configure_lustre_server_oss_ldiskfs
   end
 
-  config.vm.define  "client" do |client|
-    client.vm.hostname = "client"
+  config.vm.define "client1" do |client|
+    client.vm.hostname = "client1"
     client.vm.network "private_network", ip: "192.168.56.30"
     client.vm.disk :disk, size: "1GB", name: "disk_for_lustre_pcc"
     client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
     client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
     client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
     client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client
+    client.vm.provision "shell", name: "partition_lustre_client_pcc", inline: $partition_lustre_client_pcc
+    client.vm.provision "shell", name: "format_lustre_client_pcc", inline: $format_lustre_client_pcc
+    client.vm.provision "shell", name: "init_user", inline: $init_lustre_client_user
+    client.vm.provision "shell", name: "configure_lpcc", inline: $configure_lustre_client_pcc
+  end
+
+  config.vm.define "client2" do |client|
+    client.vm.hostname = "client2"
+    client.vm.network "private_network", ip: "192.168.56.31"
+    client.vm.disk :disk, size: "1GB", name: "disk_for_lustre_pcc"
+    client.vm.provision "shell", name: "create_repo_lustre_client", inline: $create_repo_lustre_client
+    client.vm.provision "shell", name: "install_packages_client", inline: $install_packages_client
+    client.vm.provision "shell", name: "configure_lnet", inline: $configure_lustre_server_lnet
+    client.vm.provision "shell", name: "configure_client", inline: $configure_lustre_client
+    client.vm.provision "shell", name: "partition_lustre_client_pcc", inline: $partition_lustre_client_pcc
+    client.vm.provision "shell", name: "format_lustre_client_pcc", inline: $format_lustre_client_pcc
     client.vm.provision "shell", name: "configure_lpcc", inline: $configure_lustre_client_pcc
   end
 

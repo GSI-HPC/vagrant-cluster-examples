@@ -19,13 +19,10 @@ Components can be started separately:
 
 ### Overview
 
-Overall, PCC is not well integrated into Lustre, because
-* Quota
-
-* Posix `rm` command does not delete cached file on the PCC disk. A file has to be detached first, so it is available on the Lustre OST.
+* Posix `rm` command does not delete cached files on the PCC disk, unless files have been detached first.
 * User must be aware of PCC commands e.g. `attach`, `detach` and `state` and the PCC workflow, otherwise...
-  - PCC local disk runs out of sync with "dead" files.
-  - Lustre disk space quota can be by passed and exceeded after detach.
+  - PCC local disk keeps a copy of files, if files are not detached before accessed on Lustre by other clients.
+  - Lustre disk space and inode quota check can be by passed and exceeded after detach!
   - IO processes can block on full local cache disk during write operation...
 
 #### Full Local Disk
@@ -223,4 +220,52 @@ Filesystem                   Inodes IUsed    IFree IUse% Mounted on
 ```
 $ dd if=/dev/urandom of=/lustre/vagrant/scratch/full.tmp bs=10M count=1
 dd: failed to open '/lustre/vagrant/scratch/full.tmp': No space left on device
+```
+
+#### Two Clients
+
+\[vagrant@client1 ~\]
+```
+$ dd if=/dev/urandom of=/lustre/vagrant/scratch/0.tmp bs=10M count=10
+104857600 bytes (105 MB, 100 MiB) copied, 5.23105 s, 20.0 MB/s
+
+$ df -h
+Filesystem                  Size  Used Avail Use% Mounted on
+...
+192.168.56.10@tcp:/phoenix   19G  2.5M   18G   1% /lustre
+/dev/sdb1                   989M  101M  822M  11% /mnt/pcc
+```
+
+\[vagrant@client2 ~\]
+```
+$ ls -ltr /lustre/vagrant/scratch/
+-rw-rw-r--. 1 vagrant vagrant 0 May 15 06:15 0.tmp
+
+$ time head /lustre/vagrant/scratch/0.tmp
+`>~rH:=a
+...
+real    0m1.039s
+
+$ ls -ltrh /lustre/vagrant/scratch/
+total 100M
+-rw-rw-r--. 1 vagrant vagrant 100M May 15 06:15 0.tmp
+```
+
+\[vagrant@client1 ~\]
+```
+$ df -h
+...
+192.168.56.10@tcp:/phoenix   19G  103M   18G   1% /lustre
+/dev/sdb1                   989M  101M  822M  11% /mnt/pcc
+
+$ lfs pcc state /lustre/vagrant/scratch/0.tmp
+file: /lustre/vagrant/scratch/0.tmp, type: none
+
+$ rm /lustre/vagrant/scratch/0.tmp
+
+$ df -h
+Filesystem                  Size  Used Avail Use% Mounted on
+...
+192.168.56.10@tcp:/phoenix   19G  2.5M   18G   1% /lustre
+/dev/sdb1                   989M  101M  822M  11% /mnt/pcc
 ```

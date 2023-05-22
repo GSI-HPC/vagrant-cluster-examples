@@ -1,6 +1,10 @@
-# Lustre Installations
+# Lustre Installation
 
-## Lustre
+## Examples
+
+* [base](base/) - Basic installation examples on different OS with LDISKFS/ZFS
+* [mpiio](mpiio/) - A low-level interface to carrying out parallel I/O with MPI
+* [pcc](pcc/) - Persistent Client Cache activated
 
 ### Support Matrix
 

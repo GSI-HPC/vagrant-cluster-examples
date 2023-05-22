@@ -15,6 +15,38 @@ Components can be started separately:
 1. `./start_client.sh 1`
 1. `./start_client.sh 2`
 
+In any case, for the different components the following messages should appear at the end of its section:
+
+**MXS (MDS+MGS)**:
+
+```
+Lustre filesystem mounted on MXS
+Successfully started MXS
+```
+
+**OSS**:
+
+```
+All OSTs mounted on OSS
+Successfully started OSS
+```
+
+**client1**:
+
+```
+Lustre filesystem mounted on client1
+Lustre filesystem information found on client1
+Successfully started client1
+```
+
+**client2**:
+
+```
+Lustre filesystem mounted on client2
+Lustre filesystem information found on client2
+Successfully started client2
+```
+
 ## Lustre Persistent Client Cache (PCC)
 
 ### Overview
@@ -38,21 +70,27 @@ Attach and detach works per file.
 ##### Attach
 
 * Saves file into PCC, if file exists already on a Lustre OST that it is moved into the PCC and removed from OST.
-* Attach works on existing files only.
+* Manual attach works on existing files only.
 * Use `auto_attach` to directly create files in the PCC instead of writing data on OSTs first and attach afterwards.
 
 ##### Detach
 
 Move cached file from PCC to Lustre OST.
 
-### Testing
+### Configuration
 
-PCC configuration:
+Configuration is done by Vagrant provisioning in the [Vagrantfile](Vagrantfile).
 
 * `auto_attach` enabled
 * Project id (pid) = 1000 (pid same as vagrant gid)
 * gid = 1000 (vagrant)
 * Project path = `/lustre/vagrant/scratch`
+
+### Testing
+
+Tests are executed on the proper client[1,2] locally with commands below.
+
+To connect to a client use e.g. `vagrant ssh client1`.
 
 #### Basics with Single Client
 
@@ -228,6 +266,9 @@ dd: failed to open '/lustre/vagrant/scratch/full.tmp': No space left on device
 ```
 $ dd if=/dev/urandom of=/lustre/vagrant/scratch/0.tmp bs=10M count=10
 104857600 bytes (105 MB, 100 MiB) copied, 5.23105 s, 20.0 MB/s
+
+$ lfs pcc state /lustre/vagrant/scratch/0.tmp
+file: /lustre/vagrant/scratch/0.tmp, type: readwrite, PCC file: /1000/0003/0000/0401/0000/0002/0000/0x200000401:0x3:0x0, user number: 0, flags: 0
 
 $ df -h
 Filesystem                  Size  Used Avail Use% Mounted on
